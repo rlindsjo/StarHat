@@ -14,8 +14,10 @@
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-volatile uint16_t program = 0;
+volatile uint8_t program = 0;
+volatile uint8_t program_next = 0;
 volatile uint16_t state = 0;
+volatile uint16_t button_time = 0;
 volatile boolean previous = HIGH;
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
@@ -24,6 +26,11 @@ volatile boolean previous = HIGH;
 // on a live circuit...if you must, connect GND first.
 
 void setup() {
+  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
+//#if defined (__AVR_ATtiny85__)
+//  if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
+//#endif
+  // End of trinket special code
   randomSeed(analogRead(0));
   power_adc_disable();
   for (byte i=0; i<5; i++) {     //make all pins inputs with pullups enabled
@@ -62,24 +69,38 @@ void sleepNow() {
 
 void loop() {
   if (digitalRead(SWITCH) == LOW) {
-    if (previous == HIGH) {
-      program++;
-      state = 0;
-    }
     delay(20);
     previous = LOW;
+    button_time ++;
+    return;
   } else {
     previous = HIGH;
   }
+
+  if (button_time > 50) {
+    program = 100;
+    state = 0;
+  } else if (button_time > 20) {
+    program_next = program;
+    program = 10;
+    state = 0;
+  } else if (button_time > 2) {
+    program = program_next; 
+    state = 0;
+  }
+  button_time = 0;
   switch(program) {
-    case 0: setAll(0); 
+    case 0: // Blink ready blue
+      program_next = 1; 
+      setAll(0); 
       state++;
       if (state < 10) {
         strip.setPixelColor(LEDS - 1, state );
       } 
       if (state > 200) state = 0; 
     break;
-    case 1:
+    case 1: // Roll on rainbow
+      program_next = 3;
       if (state < strip.numPixels()) {
         for(uint16_t i=0; i<state; i++) {
           strip.setPixelColor(i, Wheel((i) & 255));
@@ -87,27 +108,31 @@ void loop() {
         delay(20);
         state++;
       } else {
-        program=3;
-    } break;
-    case 2: program = 4; break;
-    case 3: rainbow(); break;
-    case 4: if (state < strip.numPixels()) {
-      strip.setPixelColor(state, 0);
-      delay(20);
-      state ++;
-    } else {
-      program ++;
-      state = 0;
-    } break;  
-    case 5: {
+        program = 2;
+      }
+      break;
+    case 2: rainbow(); break;
+    case 3: // Remove rainbow
+      program_next = 4;
+      if (state < strip.numPixels()) {
+        strip.setPixelColor(state, 0);
+        delay(20);
+        state ++;
+      } else {
+        program = 4;
+      }
+      break;  
+    case 4:// Clear all  
       setAll(0);
       program ++;
       state = 0;      
-    } break;
-    case 6: {
+      break;
+    case 5: // Single star
+      program_next = 6;
       star();
-    } break;
-    case 7:
+      break;
+    case 6:// Color in
+      program_next = 7;
       if (state < strip.numPixels()) {
         for(uint16_t i=0; i<state; i++) {
           strip.setPixelColor(i, Wheel((i) & 255));
@@ -115,26 +140,61 @@ void loop() {
         delay(20);
         state++;
       } else {
-        program  ++;
+        program ++;
         state = 0;
-    } break;
-    case 8: if (state < strip.numPixels()) {
-      strip.setPixelColor(state, 0);
-      delay(20);
-      state ++;
-    } else {
-      program ++;
-      state = 0;
-    } break;
-    case 9: if (state == 0) {
+      }
+      break;
+    case 7: // Color out
+      if (state < strip.numPixels()) {
+        strip.setPixelColor(state, 0);
+        delay(20);
+        state ++;
+      } else {
+        program ++;
+        state = 0;
+      }
+      break;
+    case 10: // Special
+      if (state < strip.numPixels()) {
+        for(uint16_t i=0; i<state; i++) {
+          strip.setPixelColor(i, Wheel((i) & 255));
+        }
+        delay(20);
+        state++;
+      } else {
+        program ++;
+        state = 0;
+      }
+      break;
+    case 11: // Special
+      if (state < 2000) {
+        rainbow();
+        state++;
+      } else {
+        program ++;
+        state = 0;
+      }
+      break;
+    case 12: // Color out 
+      if (state < strip.numPixels()) {
+        strip.setPixelColor(state, 0);
+        delay(20);
+        state ++;
+      } else {
+        program = program_next;
+        state = 0;
+      }
+      break;
+    case 100: 
       setAll(0);
-      state++;
-    } else {
       sleepNow();
-    } break;
-    case 10: {
-    } break;
-    default: { program = 0; state = 0; } 
+      program = 0;
+      state = 0;
+      break;
+    default: 
+      program = 0;
+      program_next = 0;
+      state = 0;
   }
   strip.show();
 }
@@ -185,3 +245,4 @@ void setAll(uint32_t color) {
     strip.setPixelColor(i, color);
   }
 }
+
