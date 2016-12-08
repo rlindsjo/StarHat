@@ -9,4 +9,4 @@ Star Hat is an Arduino Gemma project making a story telling hat with "stars"
 * Single button interface
 
 ## Implementation
-The star hat is built form a "witches" back hat, with a 60 led strip of newlight spiraling through it. The leds ar controlled by a Adafruit Gemma with a single button controller, a LiPo battery and a USB charger for the battery.
+The star hat is built from a "witches" black hat, with a 60 led strip of neolight spiraling through it. The leds are controlled by a Adafruit Gemma with a single button controller, a LiPo battery and a USB charger for the battery.
