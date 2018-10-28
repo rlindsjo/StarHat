@@ -6,6 +6,7 @@
 #define LEDS 60
 #define LED_PIN 1
 #define SWITCH 2
+#define STAR_COUNT 4
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
 // Parameter 3 = pixel type flags, add together as needed:
@@ -194,30 +195,60 @@ void loop() {
   strip.show();
 }
 
-int cc;
-int spd;
-int pixel;
+typedef struct STAR {
+    uint32_t cc;
+    uint8_t spd;
+    uint8_t pixel;
+    uint8_t state;
+    uint8_t substate;
+};
+
+STAR stars[STAR_COUNT];
 void star() {
-  if (state == 0) {
-    cc = random(7) + 1;
-    spd = random(1, 32);
-    pixel = random(strip.numPixels());
+  for (int i = 0; i < STAR_COUNT; i++) {
+    if (stars[i].state == 0) {
+      uint32_t channels = random(1, 8);
+      stars[i].cc = (channels & 0b100) <<14 | (channels & 0b010) << 7 | (channels & 0b001) ;
+      stars[i].spd = random(4, 16);
+      stars[i].pixel = freeRandomPixel();
+      stars[i].substate = 0;
+      stars[i].state = 1;
+    }
+    if (++stars[i].substate == stars[i].spd) {
+      stars[i].substate = 0;
+      stars[i].state++;
+      lightStar(&stars[i]);
+    }
   }
-  state++;
-  if (state < 32) { 
-    int intensity = 8*state;
-    strip.setPixelColor(pixel, strip.Color(intensity*(cc&1), intensity*(cc>>1 & 1), intensity*((cc>>2&1))));
-  } else if (state < 64) {
-    int intensity = (511 - 8*state);
-    strip.setPixelColor(pixel, strip.Color(intensity*(cc&1), intensity*(cc>>1 & 1), intensity*((cc>>2&1))));
-  } else {
-    strip.setPixelColor(pixel, 0);
-    state = 0;
-  }
-  delay(spd);
+  delay(1);
 }
 
-uint32_t Wheel(byte WheelPos) {
+void lightStar(struct STAR * star) {
+  uint32_t intensity;
+  if (star->state < 32) {
+    intensity = 8*star->state;
+  } else if (star->state < 64) {
+    intensity = (511 - 8*star->state);
+  } else {
+    intensity = 0;
+    star->state = 0;
+  }
+  strip.setPixelColor(star->pixel, intensity * star->cc);
+}
+
+int freeRandomPixel() {
+  loop: while(true) {
+    int candidate = random(strip.numPixels());
+    for (int i = 0; i < STAR_COUNT; i++) {
+      if (candidate == stars[i].pixel) {
+        goto loop;
+      }
+    }
+    return candidate;
+  }
+}
+
+uint32_t Wheel(uint8_t WheelPos) {
   WheelPos = 255 - WheelPos;
   if(WheelPos < 85) {
    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
@@ -231,9 +262,10 @@ uint32_t Wheel(byte WheelPos) {
 }
 
 void rainbow() {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
+  for(uint8_t i=0; i<strip.numPixels(); i++) {
     strip.setPixelColor(i, Wheel((i+state) & 255));
   }
+  delay(1);
   state+=2;
 }
 
