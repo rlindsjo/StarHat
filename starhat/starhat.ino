@@ -26,12 +26,6 @@ volatile boolean previous = HIGH;
 // on a live circuit...if you must, connect GND first.
 
 void setup() {
-  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
-//#if defined (__AVR_ATtiny85__)
-//  if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
-//#endif
-  // End of trinket special code
-  randomSeed(analogRead(0));
   power_adc_disable();
   for (byte i=0; i<5; i++) {     //make all pins inputs with pullups enabled
        pinMode(i, INPUT_PULLUP);
@@ -125,7 +119,8 @@ void loop() {
     case 4:// Clear all  
       setAll(0);
       program ++;
-      state = 0;      
+      state = 0;
+      randomSeed(micros());
       break;
     case 5: // Single star
       program_next = 6;
@@ -210,9 +205,11 @@ void star() {
   }
   state++;
   if (state < 32) { 
-    strip.setPixelColor(pixel, strip.Color(8*state*(cc&1), 8*state*(cc>>1 & 1), 8*state*((cc>>2&1))));
+    int intensity = 8*state;
+    strip.setPixelColor(pixel, strip.Color(intensity*(cc&1), intensity*(cc>>1 & 1), intensity*((cc>>2&1))));
   } else if (state < 64) {
-    strip.setPixelColor(pixel, strip.Color((511 - 8*state)*(cc&1), (511-8*state)*(cc>>1 & 1), (511-8*state)*((cc>>2&1))));
+    int intensity = (511 - 8*state);
+    strip.setPixelColor(pixel, strip.Color(intensity*(cc&1), intensity*(cc>>1 & 1), intensity*((cc>>2&1))));
   } else {
     strip.setPixelColor(pixel, 0);
     state = 0;
@@ -245,4 +242,3 @@ void setAll(uint32_t color) {
     strip.setPixelColor(i, color);
   }
 }
-
